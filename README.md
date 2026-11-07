@@ -1,4 +1,4 @@
-# OpenHarness
+<img src="logo.png" />
 
 **A lightweight, extensible AI harness built with Python.**
 
