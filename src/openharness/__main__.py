@@ -4,13 +4,40 @@ import os
 import time
 import json
 import sys
+import asyncio
+from plugins.loader import loadPlugins
+from openharness.system_config import systemprompt
 from openharness.filesystem import FileSystem
 from openharness.toolregistry import ToolRegistry
+from openharness.shellexecution import ShellExecution
+from openharness.mcp_client import MCPClient
+from openharness.websearch import WebSearch
 API_URL = ""
 API_KEY = ""
 MODEL = ""
 DEBUG = ""
-def execute_tool_calls(message, messages):
+
+async def agent(userMessage, messages):
+    messages.append({
+        "role": "user",
+        "content": userMessage
+    })
+
+    while True:
+        assistant_message = chat(messages)
+
+        if assistant_message.get("tool_calls"):
+            await execute_tool_calls(
+                assistant_message,
+                messages
+            )
+            continue
+
+        messages.append(assistant_message)
+
+        return assistant_message.get("content", "")
+
+async def execute_tool_calls(message, messages):
     messages.append(message)
 
     for tool_call in message.get("tool_calls", []):
@@ -28,7 +55,13 @@ def execute_tool_calls(message, messages):
             result = registry.execute(name, arguments)
             output = json.dumps(result, ensure_ascii=False)
 
-            print(f"[Tool] Result: {output}")
+
+            if DEBUG == "true":
+                print(f"[Tool] Result: {output}")
+            elif DEBUG == "false":
+                pass
+            else:
+                print("[OPENHARNESS] Invalid boolean value!")
 
         except Exception as e:
             output = json.dumps({"error": str(e)})
@@ -39,11 +72,24 @@ def execute_tool_calls(message, messages):
             "tool_call_id": tool_call["id"],
             "content": output
         })
+async def initialize():
+    registry = await initialize_tools()
 
-def initialize_tools():
+    mcp_client = MCPClient()
+    await mcp_client.load_config(
+        registry,
+        "config/mcp.json"
+    )
+
+    return registry, mcp_client
+
+
+async def initialize_tools():
     registry = ToolRegistry()
     fs = FileSystem("./")
-
+    se = ShellExecution()
+    mcp_client = MCPClient()
+    ws = WebSearch()
     registry.register(
         "read_file",
         "Read a text file from the workspace.",
@@ -54,6 +100,20 @@ def initialize_tools():
                 "filename": {"type": "string"}
             },
             "required": ["filename"],
+            "additionalProperties": False
+        }
+    )
+
+    registry.register(
+        "shell",
+        "Use shell to execute commands like touch or mkdir.",
+        se.execute_shell,
+        {
+            "type": "object",
+            "properties": {
+                "cmd": {"type": "string"}
+            },
+            "required": ["cmd"],
             "additionalProperties": False
         }
     )
@@ -83,8 +143,40 @@ def initialize_tools():
             "additionalProperties": False
         }
     )
+    registry.register(
+        "web_search",
+        "Search the internet for information. ",
+        ws.web_search,
+        {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "max_results": {"type": "integer"}
+            },
+            "required": ["query"],
+            "additionalProperties": False
+        }
+    )
+    registry.register(
+        "web_fetch",
+        "Fetch infomation from the internet",
+        ws.web_fetch,
+        {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string"},
+            },
+            "required": ["url"],
+            "additionalProperties": False
+        }
+    )
+    loadPlugins()
+    # Load MCP servers from config/mcp.json
+    await mcp_client.load_config(registry)
 
-    return registry
+    print("[OpenHarness] Tools initialized.")
+
+    return registry,mcp_client
 def initCredentials():
     try:
         with open("config/config.json", "r") as config:
@@ -96,6 +188,7 @@ def initCredentials():
     API_KEY = info["API_KEY"]
     MODEL = info["API-MODEL"]
     DEBUG = info["DEBUG"]
+    #SYSTEM_PROMPT = info["SYSTEM_PROMPT"]
     return API_URL, API_KEY, MODEL,DEBUG
     
 
@@ -143,14 +236,13 @@ def chat(messages: list) -> dict:
 
 
 
-def main():
+async def main():
     global registry
-    registry = initialize_tools()
-    print("OpenHarness v0.1")
+    registry,mcp_client =  await initialize_tools()
+    print("OpenHarness v0.2")
     print("----------------")
 
     messages = []
-
     while True:
         try:
             userMessage = input("\nYou: ").strip()
@@ -162,32 +254,15 @@ def main():
                 print("Goodbye!")
                 break
 
-            messages.append({
-                "role": "user",
-                "content": userMessage
-            })
-
-            # Send request
-            
-            #assistant_message = chat(messages)
-            assistant_message = chat(messages)
-
-            if assistant_message.get("tool_calls"):
-                execute_tool_calls(assistant_message, messages)
-                continue
-            # Preserve the complete assistant message,
-            # including reasoning_details
-            messages.append(assistant_message)
-
-            typewriter(assistant_message.get("content"))
+            response = await agent(userMessage, messages)
+            typewriter(response)
 
         except KeyboardInterrupt:
             print("\nGoodbye!")
             break
 
-        except EOFError:
-            print("\nGoodbye!")
-            break
+        except Exception as e:
+            print(f"[Error] {e}")
 
         except requests.RequestException as error:
             print(f"\nNetwork error: {error}")
@@ -198,7 +273,9 @@ def main():
             print(f"\nError: {error}")
             if messages and messages[-1]["role"] == "user":
                 messages.pop()
+        finally:
+            await mcp_client.disconnect_all()
 
 if __name__ == "__main__":
     API_URL, API_KEY, MODEL,DEBUG = initCredentials()
-    main()
+    asyncio.run(main())

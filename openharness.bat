@@ -1,1 +1,1 @@
-uv run src/openharness/__init__.py
+.\.venv\Scripts\python.exe -m openharness
