@@ -5,7 +5,7 @@ build/
 dist/
 wheels/
 config/config.json
-
+skills/*
 *.egg-info
 
 # Virtual environments

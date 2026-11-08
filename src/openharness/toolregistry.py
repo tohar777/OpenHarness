@@ -1,3 +1,4 @@
+import inspect
 
 class ToolRegistry:
 
@@ -24,8 +25,16 @@ class ToolRegistry:
             for name, tool in self.tools.items()
         ]
 
-    def execute(self, name, arguments):
-        if name not in self.tools:
-            raise ValueError(f"Unknown tool: {name}")
+    
 
-        return self.tools[name]["function"](**arguments)
+    async def execute(self, name, arguments):
+            if name not in self.tools:
+                raise ValueError(f"Unknown tool: {name}")
+
+            function = self.tools[name]["function"]
+            result = function(**arguments)
+
+            if inspect.isawaitable(result):
+                result = await result
+
+            return result

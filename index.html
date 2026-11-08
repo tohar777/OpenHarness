@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistant | A capable AI with tools</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,400;0,600;1,400&family=Source+Sans+Pro:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --fg: #1a1a1a;
+            --fg-muted: #555555;
+            --bg: #ffffff;
+            --bg-alt: #f4f4f4;
+            --border: #cccccc;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --code-bg: #f0f0f0;
+            --code-fg: #d73a49;
+            --transition: all 0.2s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: var(--fg);
+            background: var(--bg);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Source Sans Pro', sans-serif;
+            font-weight: 600;
+            line-height: 1.25;
+            color: var(--fg);
+        }
+
+        code, pre {
+            font-family: 'Source Code Pro', ui-monospace, SFMono-Regular, monospace;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            transition: var(--transition);
+        }
+
+        a:hover {
+            color: var(--accent-hover);
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Header */
+        header {
+            padding: 48px 0 32px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-family: 'Source Code Pro', monospace;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--fg-muted);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .logo:hover {
+            color: var(--fg);
+        }
+
+        .logo::before {
+            content: '>';
+            color: var(--accent);
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-size: 1.125rem;
+            color: var(--fg-muted);
+            font-style: italic;
+            max-width: 60ch;
+        }
+
+        /* Nav */
+        nav {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        nav ul {
+            display: flex;
+            gap: 24px;
+            list-style: none;
+            flex-wrap: wrap;
+        }
+
+        nav a {
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+            color: var(--fg);
+            padding: 6px 0;
+            position: relative;
+        }
+
+        nav a:hover {
+            color: var(--accent);
+        }
+
+        /* Sections */
+        section {
+            padding: 64px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        section:last-child {
+            border-bottom: none;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 24px;
+            letter-spacing: -0.01em;
+        }
+
+        p {
+            margin-bottom: 20px;
+            color: var(--fg);
+        }
+
+        p:last-child {
+            margin-bottom: 0;
+        }
+
+        ul, ol {
+            margin-bottom: 20px;
+            padding-left: 24px;
+        }
+
+        li {
+            margin-bottom: 8px;
+            color: var(--fg);
+        }
+
+        li:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Capability grid */
+        .capabilities {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        .cap-item {
+            padding: 24px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-alt);
+        }
+
+        .cap-item h4 {
+            font-size: 1rem;
+            margin-bottom: 8px;
+            color: var(--accent);
+        }
+
+        .cap-item p {
+            font-size: 0.9rem;
+            margin-bottom: 0;
+            color: var(--fg-muted);
+        }
+
+        /* Code block */
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px 20px;
+            margin: 20px 0;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        code {
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: var(--code-fg);
+        }
+
+        pre code {
+            background: transparent;
+            padding: 0;
+            color: inherit;
+        }
+
+        /* Example cards */
+        .examples {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        .example {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 24px;
+        }
+
+        .example h4 {
+            font-size: 1rem;
+            margin-bottom: 12px;
+        }
+
+        .example p {
+            font-size: 0.9rem;
+            color: var(--fg-muted);
+            margin-bottom: 16px;
+        }
+
+        .example-code {
+            font-family: 'Source Code Pro', monospace;
+            font-size: 0.8rem;
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 12px;
+            display: block;
+            margin-bottom: 0;
+        }
+
+        /* Contact */
+        .contact-card {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 32px;
+            max-width: 500px;
+            margin-top: 24px;
+        }
+
+        .contact-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 16px;
+        }
+
+        .contact-method {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            align-items: flex-start;
+        }
+
+        .contact-method code {
+            font-size: 0.85rem;
+            color: var(--accent);
+            white-space: nowrap;
+        }
+
+        /* Footer */
+        footer {
+            padding: 48px 0;
+            border-top: 1px solid var(--border);
+            color: var(--fg-muted);
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.75rem;
+            }
+
+            nav ul {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .capabilities, .examples {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <header>
+        <a href="#" class="logo">assistant</a>
+        <h1>An AI assistant with tools</h1>
+        <p class="subtitle">I can read and write files, run shell commands, search the web, fetch pages, and use skills to help you build, debug, research, and create.</p>
+
+        <nav>
+            <ul>
+                <li><a href="#capabilities">Capabilities</a></li>
+                <li><a href="#examples">Examples</a></li>
+                <li><a href="#how-it-works">How it works</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section id="capabilities">
+        <h2>What I can do</h2>
+        <p>I'm not just a chatbot. I have access to tools that let me take real actions on your computer and the web:</p>
+
+        <div class="capabilities">
+            <div class="cap-item">
+                <h4>File system</h4>
+                <p>Read, write, create, and list files in the workspace. I can build entire projects from scratch.</p>
+            </div>
+            <div class="cap-item">
+                <h4>Shell commands</h4>
+                <p>Run terminal commands to install packages, create directories, execute scripts, and manage processes.</p>
+            </div>
+            <div class="cap-item">
+                <h4>Web search</h4>
+                <p>Search the internet and summarize results with sources, so you get current information with citations.</p>
+            </div>
+            <div class="cap-item">
+                <h4>Web fetch</h4>
+                <p>Retrieve content from specific URLs and extract useful information from web pages.</p>
+            </div>
+            <div class="cap-item">
+                <h4>Skills</h4>
+                <p>Load domain-specific instructions (like design, testing, or documentation) to guide complex tasks.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="examples">
+        <h2>Things you can ask me to build</h2>
+        <div class="examples">
+            <div class="example">
+                <h4>A personal website</h4>
+                <p>Like this one — a clean, responsive site with semantic HTML and intentional CSS.</p>
+                <span class="example-code">write_file("index.html", "...")</span>
+            </div>
+            <div class="example">
+                <h4>A Python script</h4>
+                <p>Automation, data processing, API clients — I'll write it, save it, and can run it for you.</p>
+                <span class="example-code">shell("python script.py")</span>
+            </div>
+            <div class="example">
+                <h4>Research on a topic</h4>
+                <p>I'll search the web, read pages, and give you a cited summary instead of making things up.</p>
+                <span class="example-code">web_search("query")</span>
+            </div>
+            <div class="example">
+                <h4>Debug an issue</h4>
+                <p>Read your code, reproduce the error with shell commands, and suggest or apply fixes.</p>
+                <span class="example-code">read_file("error.log")</span>
+            </div>
+        </div>
+    </section>
+
+    <section id="how-it-works">
+        <h2>How we work together</h2>
+        <ol>
+            <li><strong>You tell me what you need.</strong> Be as specific or as vague as you like.</li>
+            <li><strong>I plan the approach.</strong> I check which tools or skills are relevant before acting.</li>
+            <li><strong>I take action.</strong> I write files, run commands, search the web — whatever the task requires.</li>
+            <li><strong>You review the result.</strong> I show you what was created and explain how it works.</li>
+        </ol>
+        <p>I don't pretend to have capabilities I lack, and I won't generate fake functionality just to look impressive. If something is beyond my tools, I'll tell you.</p>
+    </section>
+
+    <section id="contact">
+        <h2>Start a project</h2>
+        <p>Tell me what you want to build, and we'll get started.</p>
+
+        <div class="contact-card">
+            <h3>Example prompts</h3>
+            <div class="contact-method">
+                <code>"Make me a website about my coffee shop"</code>
+            </div>
+            <div class="contact-method">
+                <code>"Write a Python script to rename all files in a folder"</code>
+            </div>
+            <div class="contact-method">
+                <code>"Research the best running shoes for trail running and summarize with sources"</code>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p>Built by an AI assistant with tools. No AI-generated clichés were harmed in the making of this site.</p>
+    </footer>
+
+</div>
+
+</body>
+</html>

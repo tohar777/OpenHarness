@@ -5,6 +5,7 @@ import time
 import json
 import sys
 import asyncio
+import httpx
 from plugins.loader import loadPlugins
 from openharness.system_config import systemprompt
 from openharness.filesystem import FileSystem
@@ -12,6 +13,8 @@ from openharness.toolregistry import ToolRegistry
 from openharness.shellexecution import ShellExecution
 from openharness.mcp_client import MCPClient
 from openharness.websearch import WebSearch
+from openharness.skills import SkillManager
+from openharness.tui import OpenHarnessTUI
 API_URL = ""
 API_KEY = ""
 MODEL = ""
@@ -24,7 +27,7 @@ async def agent(userMessage, messages):
     })
 
     while True:
-        assistant_message = chat(messages)
+        assistant_message = await chat(messages)
 
         if assistant_message.get("tool_calls"):
             await execute_tool_calls(
@@ -43,25 +46,17 @@ async def execute_tool_calls(message, messages):
     for tool_call in message.get("tool_calls", []):
         name = tool_call["function"]["name"]
         arguments = json.loads(tool_call["function"]["arguments"])
+
         if DEBUG == "true":
             print(f"\n[Tool] Calling: {name}")
             print(f"[Tool] Arguments: {arguments}")
-        elif DEBUG == "false":
-            pass
-        else:
-            print("[OPENHARNESS] Invalid boolean value!")
 
         try:
-            result = registry.execute(name, arguments)
-            output = json.dumps(result, ensure_ascii=False)
-
+            result = await registry.execute(name, arguments)
+            output = json.dumps(result, ensure_ascii=False, default=str)
 
             if DEBUG == "true":
                 print(f"[Tool] Result: {output}")
-            elif DEBUG == "false":
-                pass
-            else:
-                print("[OPENHARNESS] Invalid boolean value!")
 
         except Exception as e:
             output = json.dumps({"error": str(e)})
@@ -72,6 +67,7 @@ async def execute_tool_calls(message, messages):
             "tool_call_id": tool_call["id"],
             "content": output
         })
+
 async def initialize():
     registry = await initialize_tools()
 
@@ -90,6 +86,33 @@ async def initialize_tools():
     se = ShellExecution()
     mcp_client = MCPClient()
     ws = WebSearch()
+    skill = SkillManager()
+    registry.register(
+        "skill_catalog",
+        "list of available skill in the skills directory",
+        skill.get_catalog,
+        {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False
+        }
+    )
+    registry.register(
+        "load_skill",
+        "load a skill's full instruction when relevant to user",
+        skill.load_skill,
+        {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name of the skill to load."
+                }
+            },
+            "required": ["name"],
+            "additionalProperties": False
+        }
+    )
     registry.register(
         "read_file",
         "Read a text file from the workspace.",
@@ -170,7 +193,7 @@ async def initialize_tools():
             "additionalProperties": False
         }
     )
-    loadPlugins()
+    loadPlugins(registry)
     # Load MCP servers from config/mcp.json
     await mcp_client.load_config(registry)
 
@@ -200,29 +223,29 @@ def typewriter(text, speed=0.01):
         time.sleep(speed)
     print() 
 
-def chat(messages: list) -> dict:
+async def chat(messages: list) -> dict:
     if not API_KEY:
         raise RuntimeError("Missing OPENROUTER_API_KEY environment variable.")
 
-    response = requests.post(
-        API_URL,
-        headers={
-            "Authorization": f"Bearer {API_KEY}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "model": MODEL,
-            "messages": messages,
-            "tools": registry.get_schemas(),
-            "tool_choice": "auto",
-            "reasoning": {
-                "enabled": True
+    async with httpx.AsyncClient(timeout=120) as client:
+        response = await client.post(
+            API_URL,
+            headers={
+                "Authorization": f"Bearer {API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": MODEL,
+                "messages": messages,
+                "tools": registry.get_schemas(),
+                "tool_choice": "auto",
+                "reasoning": {
+                    "enabled": True
+                }
             }
-        },
-        timeout=120
-    )
+        )
 
-    if not response.ok:
+    if not response.is_success:
         raise RuntimeError(
             f"OpenRouter error ({response.status_code}): {response.text}"
         )
@@ -235,46 +258,23 @@ def chat(messages: list) -> dict:
     return data["choices"][0]["message"]
 
 
-
 async def main():
     global registry
-    registry,mcp_client =  await initialize_tools()
-    print("OpenHarness v0.2")
+
+    registry, mcp_client = await initialize_tools()
+
+    print("OpenHarness v0.4")
     print("----------------")
 
-    messages = []
-    while True:
-        try:
-            userMessage = input("\nYou: ").strip()
+    messages = [
+        {"role": "system", "content": systemprompt()}
+    ]
 
-            if not userMessage:
-                continue
-
-            if userMessage == "/exit":
-                print("Goodbye!")
-                break
-
-            response = await agent(userMessage, messages)
-            typewriter(response)
-
-        except KeyboardInterrupt:
-            print("\nGoodbye!")
-            break
-
-        except Exception as e:
-            print(f"[Error] {e}")
-
-        except requests.RequestException as error:
-            print(f"\nNetwork error: {error}")
-            if messages and messages[-1]["role"] == "user":
-                messages.pop()
-
-        except RuntimeError as error:
-            print(f"\nError: {error}")
-            if messages and messages[-1]["role"] == "user":
-                messages.pop()
-        finally:
-            await mcp_client.disconnect_all()
+    try:
+        app = OpenHarnessTUI(agent, messages)
+        await app.run_async()
+    finally:
+        await mcp_client.disconnect_all()
 
 if __name__ == "__main__":
     API_URL, API_KEY, MODEL,DEBUG = initCredentials()

@@ -1,6 +1,6 @@
-<img src="logo.png" />
+<img src="logo.png" style="height:80%;" />
 
-**A lightweight, extensible AI harness built with Python.**
+**A lightweight, extensible AI harness.**
 
 OpenHarness is an experimental AI harness designed to connect LLMs with tools, filesystem access, and a customizable execution environment.
 
