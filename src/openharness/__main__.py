@@ -263,7 +263,7 @@ async def main():
 
     registry, mcp_client = await initialize_tools()
 
-    print("OpenHarness v0.4")
+    print("OpenHarness v0.5")
     print("----------------")
 
     messages = [

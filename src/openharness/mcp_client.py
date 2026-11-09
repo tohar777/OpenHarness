@@ -38,7 +38,7 @@ class MCPClient:
         print(f"[MCP] Connected: {name}")
 
         for tool in result.tools:
-            print(f"[MCP] Discovered: {tool.name}")
+            print(f"[MCP] Discovered: {name}_{tool.name}")
 
         return result.tools
 
@@ -49,12 +49,32 @@ class MCPClient:
             name, command, args, env
         )
 
+        session = self.sessions[name]
+
         for tool in tools:
-            registry.register_mcp(name, tool, self)
+            async def execute_mcp_tool(arguments, _name=tool.name, _session=session):
+                result = await _session.call_tool(_name, arguments)
+
+                if result.isError:
+                    raise RuntimeError(
+                        f"MCP tool failed: {result.content}"
+                    )
+
+                return result.structuredContent or [
+                    getattr(block, "text", str(block))
+                    for block in result.content
+                ]
+
+            registry.register(
+                f"{name}_{tool.name}",
+                tool.description or f"MCP tool from {name}",
+                execute_mcp_tool,
+                tool.inputSchema
+            )
 
         return {
             "server": name,
-            "tools": [tool.name for tool in tools]
+            "tools": [f"{name}_{tool.name}" for tool in tools]
         }
 
     async def load_config(
@@ -74,13 +94,19 @@ class MCPClient:
                 continue
 
             try:
-                await self.connect_server(
+                result = await self.connect_server(
                     registry,
                     name,
                     server["command"],
                     server.get("args", []),
                     server.get("env", {})
                 )
+
+                print(
+                    f"[MCP] Registered {len(result['tools'])} "
+                    f"tools from {name}"
+                )
+
             except Exception as e:
                 print(f"[MCP] Failed to connect to {name}: {e}")
 

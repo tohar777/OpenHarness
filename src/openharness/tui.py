@@ -1,108 +1,121 @@
 
 import time
+import asyncio
 
 from textual.app import App, ComposeResult
 from textual import work
-from textual.containers import Horizontal, Vertical
-from textual.widgets import Header, Footer, Input, RichLog, Static
-from rich.markdown import Markdown
+from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.widgets import Header, Footer, Input, Static
+from rich.text import Text
 
 
 class OpenHarnessTUI(App):
 
-    TITLE = "OPENHARNESS"
-    SUB_TITLE = "Autonomous AI Agent"
+    TITLE = "OPENHARNESS 0.5"
+    SUB_TITLE = "Autonomous AI Harness"
 
     CSS = """
-    Screen {
-        background: #101116;
-    }
+        Screen {
+            background: #101116;
+        }
 
-    Header {
-        background: #191b23;
-        color: #e5a45b;
-    }
+        Header {
+            background: #191b23;
+            color: #e5a45b;
+        }
 
-    Footer {
-        background: #191b23;
-    }
+        Footer {
+            background: #191b23;
+        }
 
-    #main {
-        height: 1fr;
-    }
+        #main {
+            height: 1fr;
+        }
 
-    #sidebar {
-        width: 28;
-        background: #171920;
-        border-right: solid #30333d;
-        padding: 1;
-    }
+        #sidebar {
+            width: 28;
+            background: #171920;
+            border-right: solid #30333d;
+            padding: 1;
+        }
 
-    #brand {
-        color: #e5a45b;
-        text-style: bold;
-        margin-bottom: 2;
-    }
+        #brand {
+            color: #e5a45b;
+            text-style: bold;
+            margin-bottom: 2;
+        }
 
-    .section {
-        color: #777f91;
-        text-style: bold;
-        margin-top: 1;
-        margin-bottom: 1;
-    }
+        .section {
+            color: #777f91;
+            text-style: bold;
+            margin-top: 1;
+            margin-bottom: 1;
+        }
 
-    .item {
-        color: #c4c6ce;
-        padding-left: 1;
-    }
+        .item {
+            color: #c4c6ce;
+            padding-left: 1;
+        }
 
-    #activity {
-        height: 1fr;
-        background: #171920;
-        color: #aeb4c2;
-        scrollbar-size: 1 1;
-    }
+        #content {
+            width: 1fr;
+            height: 1fr;
+        }
 
-    #content {
-        width: 1fr;
-        height: 1fr;
-    }
+        #chat-area {
+            height: 1fr;
+            padding: 1 3;
+            background: #101116;
+        }
 
-    #conversation {
-        height: 1fr;
-        padding: 1 3;
-        background: #101116;
-        scrollbar-color: #555b69;
-    }
+        #conversation {
+            height: 1fr;
+            padding: 1;
+            background: #101116;
+            scrollbar-color: #555b69;
+        }
 
-    #bottom {
-        height: auto;
-        background: #171920;
-        border-top: solid #30333d;
-        padding: 1 2;
-    }
+        .message {
+            width: 1fr;
+            height: auto;
+            margin-bottom: 1;
+            padding: 0 1;
+        }
 
-    #status {
-        height: 1;
-        color: #e5a45b;
-        margin-bottom: 1;
-    }
+        .message-content {
+            width: 1fr;
+            height: auto;
+            color: #d5d7df;
+        }
 
-    #prompt {
-        background: #20232b;
-        color: white;
-        border: tall #444956;
-    }
+        #bottom {
+            height: auto;
+            background: #171920;
+            border-top: solid #30333d;
+            padding: 1 2;
+        }
 
-    #prompt:focus {
-        border: tall #d99a52;
-    }
+        #status {
+            height: 1;
+            color: #e5a45b;
+            margin-bottom: 1;
+        }
 
-    #hint {
-        color: #777f91;
-        height: 1;
-        margin-top: 1;
-    }
+        #prompt {
+            background: #20232b;
+            color: white;
+            border: tall #444956;
+        }
+
+        #prompt:focus {
+            border: tall #d99a52;
+        }
+
+        #hint {
+            color: #777f91;
+            height: 1;
+            margin-top: 1;
+        }
     """
 
     BINDINGS = [
@@ -131,37 +144,17 @@ class OpenHarnessTUI(App):
 
         with Horizontal(id="main"):
 
+            # Sidebar
             with Vertical(id="sidebar"):
                 yield Static("◆ OPENHARNESS", id="brand")
 
                 yield Static("SESSION", classes="section")
                 yield Static("● Current session", classes="item")
-
-                yield Static("AGENT", classes="section")
-                yield Static("◈ OpenRouter", classes="item")
-                yield Static("◈ Tool calling", classes="item")
-
-                yield Static("CAPABILITIES", classes="section")
-                yield Static("◈ Web search", classes="item")
-                yield Static("◈ Web fetch", classes="item")
-                yield Static("◈ Filesystem", classes="item")
-                yield Static("◈ MCP", classes="item")
-
-                yield Static("ACTIVITY", classes="section")
-                yield RichLog(
-                    id="activity",
-                    wrap=True,
-                    markup=True,
-                    highlight=True
-                )
-
+            # Main content
             with Vertical(id="content"):
-                yield RichLog(
-                    id="conversation",
-                    wrap=True,
-                    highlight=True,
-                    markup=True
-                )
+
+                with Vertical(id="chat-area"):
+                    yield VerticalScroll(id="conversation")
 
                 with Vertical(id="bottom"):
                     yield Static("● Ready", id="status")
@@ -178,19 +171,16 @@ class OpenHarnessTUI(App):
 
         yield Footer()
 
-    def on_mount(self):
+    async def on_mount(self):
         self.query_one("#prompt", Input).focus()
 
         self.set_interval(0.12, self.animate_status)
         self.set_interval(1, self.update_elapsed)
 
-        self.write_message(
+        await self.write_message(
             "OpenHarness",
             "Welcome! Your AI development assistant is ready."
         )
-
-        self.add_activity("System initialized")
-        self.add_activity("Waiting for instructions")
 
     def animate_status(self):
         if not self.busy:
@@ -213,24 +203,12 @@ class OpenHarnessTUI(App):
     def update_elapsed(self):
         if self.busy:
             elapsed = int(time.monotonic() - self.started_at)
+
             self.query_one("#hint", Static).update(
                 f"OpenHarness is working... {elapsed}s elapsed"
             )
 
-    def add_activity(self, message: str):
-        log = self.query_one("#activity", RichLog)
-
-        timestamp = time.strftime("%H:%M:%S")
-
-        log.write(
-            f"[dim]{timestamp}[/dim] [#e5a45b]›[/#e5a45b] {message}"
-        )
-
-    def set_activity(self, message: str):
-        self.current_activity = message
-        self.add_activity(message)
-
-    def on_input_submitted(self, event: Input.Submitted):
+    async def on_input_submitted(self, event: Input.Submitted):
         prompt = event.value.strip()
 
         if not prompt or self.busy:
@@ -247,14 +225,13 @@ class OpenHarnessTUI(App):
             return
 
         if prompt == "/help":
-            self.write_message(
+            await self.write_message(
                 "System",
                 "Commands: `/help`, `/clear`, `/exit`"
             )
             return
 
-        self.write_message("You", prompt)
-        self.set_activity("New request received")
+        await self.write_message("You", prompt)
 
         self.run_agent(prompt)
 
@@ -267,24 +244,23 @@ class OpenHarnessTUI(App):
         input_widget = self.query_one("#prompt", Input)
         input_widget.disabled = True
 
-        self.set_activity("Agent started")
-
         try:
-            response = await self.agent(prompt, self.messages)
-
-            self.write_message(
-                "OpenHarness",
-                response or "(No response)"
+            response = await self.agent(
+                prompt,
+                self.messages
             )
 
-            self.set_activity("Response completed")
+            await self.typewriter(
+                response or "(No response)",
+                speed=0.01
+            )
+
             self.query_one("#status", Static).update(
                 "[bold green]● Ready[/bold green]"
             )
 
         except Exception as error:
-            self.write_message("Error", str(error))
-            self.set_activity(f"Error: {error}")
+            await self.write_message("Error", str(error))
 
             self.query_one("#status", Static).update(
                 "[bold red]● Error[/bold red]"
@@ -292,6 +268,7 @@ class OpenHarnessTUI(App):
 
         finally:
             self.busy = False
+
             input_widget.disabled = False
             input_widget.focus()
 
@@ -299,10 +276,11 @@ class OpenHarnessTUI(App):
                 "Enter: Send  ·  Ctrl+B: Sidebar  ·  Ctrl+L: Clear"
             )
 
-    def write_message(self, sender: str, content: str):
-        log = self.query_one("#conversation", RichLog)
-
-        log.write("")
+    async def write_message(self, sender: str, content: str):
+        conversation = self.query_one(
+            "#conversation",
+            VerticalScroll
+        )
 
         if sender == "You":
             color = "#79b8ff"
@@ -311,9 +289,67 @@ class OpenHarnessTUI(App):
         else:
             color = "#e5a45b"
 
-        log.write(f"[bold {color}]{sender}[/bold {color}]")
-        log.write(Markdown(str(content)))
-        log.write("")
+        message = Vertical(classes="message")
+
+        await conversation.mount(message)
+
+        await message.mount(
+            Static(
+                f"[bold {color}]{sender}[/bold {color}]",
+                markup=True
+            )
+        )
+
+        if content:
+            await message.mount(
+                Static(
+                    content,
+                    classes="message-content",
+                    markup=False
+                )
+            )
+
+        conversation.scroll_end(animate=False)
+
+    async def typewriter(self, text, speed=0.01):
+        if not text:
+            return
+
+        conversation = self.query_one(
+            "#conversation",
+            VerticalScroll
+        )
+
+        # Create the assistant message in the conversation.
+        message = Vertical(classes="message")
+
+        await conversation.mount(message)
+
+        await message.mount(
+            Static(
+                "[bold #e5a45b]OpenHarness[/bold #e5a45b]",
+                markup=True
+            )
+        )
+
+        # This widget is updated in place as text arrives.
+        output = Static(
+            "",
+            classes="message-content",
+            markup=False
+        )
+
+        await message.mount(output)
+
+        current = Text()
+
+        for char in text:
+            current.append(char)
+            output.update(current)
+
+            conversation.scroll_end(animate=False)
+
+            await asyncio.sleep(speed)
 
     def action_toggle_sidebar(self):
         sidebar = self.query_one("#sidebar")
@@ -325,8 +361,14 @@ class OpenHarnessTUI(App):
         )
 
     def action_clear_screen(self):
-        self.query_one("#conversation", RichLog).clear()
+        conversation = self.query_one(
+            "#conversation",
+            VerticalScroll
+        )
 
+        conversation.remove_children()
+
+        # Preserve the system message.
         self.messages[:] = self.messages[:1]
 
         self.write_message(
@@ -335,3 +377,7 @@ class OpenHarnessTUI(App):
         )
 
         self.add_activity("Conversation cleared")
+
+    def add_activity(self, message: str):
+        activity = self.query_one("#activity", Static)
+        activity.update(message)

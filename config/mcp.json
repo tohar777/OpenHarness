@@ -1,14 +1,12 @@
 {
-    "servers": {
-        "filesystem": {
-            "transport": "stdio",
-            "command": "npx",
-            "args": [
-                "-y",
-                "@modelcontextprotocol/server-filesystem",
-                "./workspace"
-            ],
-            "env": {}
-        }
+  "servers": {
+    "test": {
+      "transport": "stdio",
+      "command": "",
+      "args": [
+        "test.py"
+      ],
+      "env": {}
     }
+  }
 }
